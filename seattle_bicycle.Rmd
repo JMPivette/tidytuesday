@@ -1,0 +1,87 @@
+---
+title: "seattle bike"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(lubridate)
+```
+
+
+## Importing and cleaning data
+
+```{r data_import, warning=FALSE, message=FALSE}
+bike_traffic <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-04-02/bike_traffic.csv")
+
+```
+
+filtering and cleaning data. I am only considering bike data
+
+```{r}
+bike_traffic <- bike_traffic %>% 
+  select(-ped_count) %>%
+  mutate(date = lubridate::mdy_hms(date))
+```
+
+<!-- ```{r detecting outliers} -->
+<!-- bike_traffic %>%  -->
+<!--   skimr::skim() -->
+
+<!-- bike_traffic %>% top_n(n = 20) %>% arrange(desc(bike_count)) -->
+
+<!-- bike_traffic %>%  -->
+<!--   filter(crossing == "Burke Gilman Trail", -->
+<!--          date(date) == "2018-05-30") %>%  -->
+<!--   arrange(desc(bike_count)) -->
+<!-- ``` -->
+
+<!-- ```{r removing outliers} -->
+<!-- bike_traffic <- bike_traffic %>%  -->
+<!--   mutate(bike_count = case_when(crossing == "Burke Gilman Trail" & date(date) == "2018-05-30" ~ 0, -->
+<!--                                 TRUE ~ bike_count)) -->
+
+
+<!-- ``` -->
+
+
+## Analysing data
+
+```{r mutate time information}
+bike_traffic <- bike_traffic %>% 
+  mutate(year = year(date),
+         day = wday(date, label = TRUE),
+         day_type = ifelse(day %in% c("Sat", "Sun"), "weekend", "weekday"),
+         direction = fct_relevel(direction, c("North", "East", "South", "West")))
+
+```
+
+```{r plot days}
+ggplot(bike_traffic, aes(x = hour(date), y = bike_count)) + 
+  geom_col() +
+  facet_grid(cols = vars(day),
+             rows = vars(crossing),
+             scales = "free_y") 
+```
+
+We can see that there is a difference between weekdays and week-ends.
+
+```{r violin plot, warning=FALSE}
+bike_traffic %>% 
+  filter(year %in% 2014:2018) %>% 
+  ggplot(aes(x = crossing, y = hour(date), weight = bike_count, colour = direction)) + 
+  geom_violin(alpha = 0, scale = "width", position = "identity") +
+  facet_grid(cols = vars(day_type)) +
+  scale_y_continuous(breaks = c(0,6,12,18,24),
+                     limits = c(0,23)) +
+  labs(y = "Hour",
+       x = "Crossing",
+       title = "Seattle bike hourly profile (2014-2018)") +
+  coord_flip() 
+  # theme_dark() +
+  # scale_color_viridis_d()
+```
+
+
+
