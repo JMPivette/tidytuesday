@@ -79,8 +79,6 @@ bike_traffic %>%
        x = "Crossing",
        title = "Seattle bike hourly profile (2014-2018)") +
   coord_flip() 
-  # theme_dark() +
-  # scale_color_viridis_d()
 ```
 
 
