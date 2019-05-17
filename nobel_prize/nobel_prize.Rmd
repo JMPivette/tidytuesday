@@ -103,18 +103,21 @@ fem_cumul_freq <- nobel_winners %>%
   group_by(prize_year, category) %>% 
   count(gender) %>% 
   ungroup() %>% 
+  complete(prize_year, category, gender, fill = list(n = 0)) %>% 
   spread(key = gender, value = n, fill = 0) %>% 
   group_by(category) %>% 
   mutate(fem_cumulative = cumsum(Female),
          male_cumulative = cumsum(Male),
-         cum_freq = fem_cumulative/(fem_cumulative + male_cumulative)) %>% 
+         cum_freq = ifelse(fem_cumulative + male_cumulative == 0,
+                           0,
+                           fem_cumulative/(fem_cumulative + male_cumulative))) %>% 
   select(category, prize_year, cum_freq)
 
 fem_cumul_freq %>% 
   ggplot(aes(x = prize_year, y = cum_freq, color = category)) + 
     geom_line() + 
     scale_y_continuous(labels = scales::percent) +
-    labs(x = "Prize year", y = "Cumulative female winners", caption = '')
+    labs(x = "Prize year", y = "Cumulative female winners", caption = 'Data source : Harvard Dataverse | plot by @jpivette')
   
   
 
@@ -132,7 +135,7 @@ year_to_display <- 1951
 
 p <- fem_cumul_freq %>% 
   group_by(prize_year) %>% 
-  mutate(rank = min_rank(cum_freq)) %>% 
+  mutate(rank = row_number(cum_freq)) %>% 
   ggplot(aes(x = -rank, y = cum_freq, fill = category)) +
   geom_col() +
   scale_x_reverse() +
