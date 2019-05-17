@@ -1,0 +1,146 @@
+---
+title: "nobel_prize"
+author: "jpivette"
+date: "5/16/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+
+```
+
+## Importing and understanding data
+
+```{r data_import, warning=FALSE, message=FALSE}
+nobel_winners <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-05-14/nobel_winners.csv")
+nobel_winner_all_pubs <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-05-14/nobel_winner_all_pubs.csv")
+
+```
+
+I will not be using nobel_winner_all_pub but will concentrate on the laureates (nobel_winners)
+Let's have a look at nobel_winners data frame.
+
+```{r summary}
+skimr::skim(nobel_winners)
+```
+
+
+It's interesting to see that out of 969 winners, 26 have no gender and 26 no birth country. Are they the same?
+
+```{r winner without gender}
+nobel_winners %>% 
+  filter(is.na(gender)) %>% 
+  select(prize_year, category, full_name, birth_country)
+```
+
+That makes sense, these nobel price winners are organization and not individuals.
+
+## Gender repartition
+
+What is the winners repartition between winners?
+
+```{r gender_repartition}
+nobel_winners %>% 
+  filter(!is.na(gender)) %>% 
+  count(gender) %>% 
+  mutate(freq = paste(round(100 * n/sum(n), 2), "%"))
+```
+
+That's not a a lot of women! Do we have a better repartition in the latest decades?
+
+```{r female percentage through decades}
+female_winners_per_decade <- nobel_winners %>% 
+  filter(!is.na(gender)) %>% 
+  mutate(decade = 10 * floor(prize_year/10)) %>% 
+  group_by(decade) %>% 
+  count(gender) %>% 
+  mutate(freq = paste(round(100 * n/sum(n), 2), "%")) %>% 
+  filter(gender == "Female")
+
+female_winners_per_decade %>% 
+  ggplot(aes(x = decade, y = freq)) + 
+  geom_col() 
+
+```
+
+Percentage is still extremely low in the last decades...
+Are some of the categories better than others?
+
+```{r female frequency per category}
+female_winners_per_category <- nobel_winners %>% 
+  filter(!is.na(gender)) %>% 
+  group_by(category) %>% 
+  count(gender) %>% 
+  mutate(freq = paste(round(100 * n/sum(n), 2), "%")) %>% 
+  filter(gender == "Female")
+
+  
+female_winners_per_category %>% 
+  ggplot(aes(x = category, y = freq)) + 
+  geom_col() 
+
+```
+
+0.9% of nobel laureates in physics are women. Seriously!!
+
+Who are they?
+```{r Physics female laureates}
+nobel_winners %>% 
+  filter(gender == "Female", category == "Physics") %>% 
+  select(full_name)
+```
+
+## Graph output
+
+### Graph line
+I am going to analyse the cumulative percentage of female laureate through the time:
+
+```{r cumulative female percentage over time}
+fem_cumul_freq <- nobel_winners %>% 
+  filter(!is.na(gender)) %>% 
+  group_by(prize_year, category) %>% 
+  count(gender) %>% 
+  ungroup() %>% 
+  spread(key = gender, value = n, fill = 0) %>% 
+  group_by(category) %>% 
+  mutate(fem_cumulative = cumsum(Female),
+         male_cumulative = cumsum(Male),
+         cum_freq = fem_cumulative/(fem_cumulative + male_cumulative)) %>% 
+  select(category, prize_year, cum_freq)
+
+fem_cumul_freq %>% 
+  ggplot(aes(x = prize_year, y = cum_freq, color = category)) + 
+    geom_line() + 
+    scale_y_continuous(labels = scales::percent) +
+    labs(x = "Prize year", y = "Cumulative female winners", caption = '')
+  
+  
+
+```
+
+The graph is not really pretty but we can see that the proportion of female winners is still droping in Physics and Chemistry
+
+### Bar chart race
+
+I have seen a lot of bar chart race recently and I have never used gganimate. Let's play:
+
+```{r}
+library(gganimate)
+year_to_display <- 1951
+
+p <- fem_cumul_freq %>% 
+  group_by(prize_year) %>% 
+  mutate(rank = min_rank(cum_freq)) %>% 
+  ggplot(aes(x = -rank, y = cum_freq, fill = category)) +
+  geom_col() +
+  scale_x_reverse() +
+  geom_text(aes(-rank, y = 0, label = category, hjust = 0)) +
+  coord_flip() +
+  transition_states(prize_year, transition_length = 4, state_length = 1) + 
+  ease_aes('cubic-in-out')
+
+animate(p, 200, fps = 10, duration = 40, width = 800, height = 600)
+```
+
