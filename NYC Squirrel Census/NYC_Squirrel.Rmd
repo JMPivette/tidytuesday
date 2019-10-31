@@ -1,0 +1,48 @@
+---
+title: "NYC Squirrel Census"
+author: "jpivette"
+date: "10/28/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r download data}
+nyc_squirrels <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-10-29/nyc_squirrels.csv")
+
+```
+
+## Cleaning data
+
+It seems that few duplicated values exists in this data.
+
+```{r cleaning data}
+nyc_squirrels %>% 
+  count(unique_squirrel_id, sort = TRUE)
+
+nyc_squirrels %>% 
+  group_by(unique_squirrel_id) %>% 
+  filter(n() > 1) %>% 
+  arrange(unique_squirrel_id)
+
+clean_squirrels <- nyc_squirrels %>% 
+  group_by(unique_squirrel_id) %>% 
+  slice(1)
+
+```
+
+Only 5 duplicated rows have been removed
+
+```{r}
+nyc_squirrels %>% 
+  count(approaches, indifferent, runs_from, sort = TRUE)
+```
+
+
+## Playing with the
